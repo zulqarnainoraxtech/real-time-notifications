@@ -8,6 +8,8 @@ let socket: Socket;
 const AdminPage = () => {
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
+  const [room, setRoom] = useState("general");
+  const [rooms, setRooms] = useState<string[]>([]);
   const [status, setStatus] = useState<
     "idle" | "sending" | "success" | "error"
   >("idle");
@@ -19,6 +21,15 @@ const AdminPage = () => {
     socket.on("connect", () => {
       console.log("Connected to server");
     });
+
+    // Fetch available rooms
+    fetch("http://localhost:5000/rooms")
+      .then((res) => res.json())
+      .then((data) => {
+        setRooms(data);
+        if (data.length > 0) setRoom(data[0]);
+      })
+      .catch((err) => console.error("Error fetching rooms:", err));
 
     return () => {
       socket.disconnect();
@@ -36,6 +47,7 @@ const AdminPage = () => {
     const notificationData = {
       title,
       message,
+      room,
       read: false,
     };
 
@@ -48,6 +60,14 @@ const AdminPage = () => {
       setMessage("");
       setTimeout(() => setStatus("idle"), 3000);
     }, 500);
+  };
+
+  // Room label colors for visual distinction
+  const roomColors: Record<string, string> = {
+    general: "bg-slate-100 text-slate-700 border-slate-200",
+    sports: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    news: "bg-blue-50 text-blue-700 border-blue-200",
+    deals: "bg-amber-50 text-amber-700 border-amber-200",
   };
 
   return (
@@ -93,6 +113,34 @@ const AdminPage = () => {
               />
             </div>
 
+            {/* Room Selector */}
+            <div className="space-y-2">
+              <label
+                htmlFor="room"
+                className="text-sm font-medium text-slate-600 ml-1"
+              >
+                Target Room
+              </label>
+              <div className="flex flex-wrap gap-2 mt-3">
+                {rooms.map((r) => (
+                  <button
+                    key={r}
+                    onClick={() => setRoom(r)}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium border transition-all capitalize ${
+                      room === r
+                        ? "ring-2 ring-blue-500 ring-offset-1 shadow-sm " +
+                          (roomColors[r] ||
+                            "bg-slate-100 text-slate-700 border-slate-200")
+                        : roomColors[r] ||
+                          "bg-slate-100 text-slate-700 border-slate-200"
+                    }`}
+                  >
+                    {r}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <button
               onClick={handleSendNotification}
               disabled={status === "sending"}
@@ -131,13 +179,14 @@ const AdminPage = () => {
               ) : status === "success" ? (
                 "Notification Sent!"
               ) : (
-                "Send Notification"
+                `Send to #${room}`
               )}
             </button>
 
             {status === "success" && (
               <p className="text-center text-sm text-emerald-600 font-medium animate-bounce mt-2">
-                Successfully broadcasted to all users
+                Successfully sent to <span className="font-bold">#{room}</span>{" "}
+                room
               </p>
             )}
           </div>
